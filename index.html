@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Membership & Subscription — API Contract & Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+:root {
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'Fira Code', 'SF Mono', monospace;
+  --bg: #0d1421;
+  --surface: #111d2e;
+  --surface2: #162438;
+  --surface-elevated: #1a2a42;
+  --border: rgba(100, 160, 220, 0.12);
+  --border-bright: rgba(100, 160, 220, 0.28);
+  --text: #c8d8e8;
+  --text-dim: #607080;
+  --text-bright: #e8f0fa;
+  --accent: #4a90d9;
+  --accent-bright: #6ba8e8;
+  --accent-dim: rgba(74, 144, 217, 0.1);
+  --green: #65d99a;
+  --green-dim: rgba(101, 217, 154, 0.12);
+  --amber: #e0a93a;
+  --amber-dim: rgba(224, 169, 58, 0.12);
+  --red: #e8696e;
+  --red-dim: rgba(232, 105, 110, 0.12);
+  --plum: #b58fdb;
+  --plum-dim: rgba(181, 143, 219, 0.12);
+  --teal: #4dbfb5;
+  --teal-dim: rgba(77, 191, 181, 0.12);
+}
+[data-theme="light"] {
+  --bg: #f0f4f8;
+  --surface: #ffffff;
+  --surface2: #e8eef4;
+  --surface-elevated: #ffffff;
+  --border: rgba(30, 60, 100, 0.1);
+  --border-bright: rgba(30, 60, 100, 0.2);
+  --text: #1a2a3a;
+  --text-dim: #5a7090;
+  --text-bright: #0a1424;
+  --accent: #1a5fa8;
+  --accent-bright: #1556a0;
+  --accent-dim: rgba(26, 95, 168, 0.08);
+  --green: #1d8a4f;
+  --green-dim: rgba(29, 138, 79, 0.1);
+  --amber: #b8830d;
+  --amber-dim: rgba(184, 131, 13, 0.1);
+  --red: #c43946;
+  --red-dim: rgba(196, 57, 70, 0.1);
+  --plum: #7a4ab8;
+  --plum-dim: rgba(122, 74, 184, 0.1);
+  --teal: #178c80;
+  --teal-dim: rgba(23, 140, 128, 0.1);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  margin: 0;
+  line-height: 1.6;
+  background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-attachment: fixed;
+  transition: background-color 0.2s, color 0.2s;
+}
+.theme-toggle {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 1000;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-bright);
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  transition: all 0.2s;
+}
+.theme-toggle:hover { border-color: var(--accent); color: var(--accent-bright); }
+.layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  max-width: 1440px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  padding: 28px 20px;
+  background: color-mix(in srgb, var(--bg) 92%, var(--surface) 8%);
+}
+.sidebar__brand {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.sidebar__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+.sidebar__meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 22px;
+}
+.sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sidebar__nav-group {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin: 16px 0 6px 0;
+  padding-left: 4px;
+}
+.sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  text-decoration: none;
+  color: var(--text-dim);
+  font-size: 13px;
+  border-left: 2px solid transparent;
+  border-radius: 0 4px 4px 0;
+  transition: all 0.15s;
+}
+.sidebar__link:hover {
+  color: var(--text);
+  background: var(--accent-dim);
+  border-left-color: var(--accent);
+}
+.sidebar__link-code {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  min-width: 22px;
+}
+.main {
+  padding: 48px 56px 96px;
+  max-width: 1100px;
+  overflow-x: hidden;
+}
+.hero {
+  margin-bottom: 56px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid var(--border);
+}
+.hero__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+.hero__tag::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px var(--accent-dim);
+}
+.hero h1 {
+  font-size: 42px;
+  font-weight: 700;
+  line-height: 1.15;
+  margin: 0 0 16px;
+  color: var(--text-bright);
+  letter-spacing: -0.02em;
+}
+.hero__lead {
+  font-size: 17px;
+  color: var(--text-dim);
+  max-width: 720px;
+  margin: 0 0 24px;
+}
+.hero__meta {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.hero__meta strong {
+  color: var(--text);
+  font-weight: 500;
+  margin-left: 6px;
+}
+section { margin-bottom: 56px; scroll-margin-top: 20px; }
+.section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.section-label::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+  border-radius: 50%;
+}
+h2 {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin: 0 0 8px;
+  letter-spacing: -0.01em;
+}
+h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-bright);
+  margin: 36px 0 12px;
+  letter-spacing: -0.005em;
+}
+h4 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 20px 0 8px;
+}
+.section-desc {
+  color: var(--text-dim);
+  max-width: 720px;
+  margin: 0 0 24px;
+  font-size: 15px;
+}
+p { margin: 0 0 14px; }
+ul, ol { padding-left: 22px; margin: 8px 0 14px; }
+li { margin-bottom: 6px; }
+code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--accent-dim);
+  color: var(--accent-bright);
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+}
+pre {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 18px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+  margin: 12px 0 18px;
+  position: relative;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.15);
+}
+pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--text);
+  font-size: inherit;
+}
+.json .k { color: var(--accent-bright); }
+.json .s { color: var(--green); }
+.json .n { color: var(--amber); }
+.json .b { color: var(--plum); }
+.json .c { color: var(--text-dim); font-style: italic; }
+.endpoint {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 22px 24px;
+  margin: 18px 0 22px;
+  transition: border-color 0.15s;
+}
+.endpoint:hover { border-color: var(--border-bright); }
+.endpoint__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.endpoint__id {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  background: var(--surface2);
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+.endpoint__title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-bright);
+  flex: 1;
+  min-width: 0;
+}
+.method {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 4px;
+  letter-spacing: 0.06em;
+}
+.method-get { background: var(--accent-dim); color: var(--accent-bright); border: 1px solid var(--accent); }
+.method-post { background: var(--green-dim); color: var(--green); border: 1px solid var(--green); }
+.method-put { background: var(--amber-dim); color: var(--amber); border: 1px solid var(--amber); }
+.method-patch { background: var(--plum-dim); color: var(--plum); border: 1px solid var(--plum); }
+.method-delete { background: var(--red-dim); color: var(--red); border: 1px solid var(--red); }
+.path {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface2);
+  padding: 7px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  display: inline-block;
+  margin: 6px 0 14px;
+  word-break: break-all;
+}
+.note {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-dim);
+  padding: 12px 16px;
+  margin: 14px 0;
+  border-radius: 0 6px 6px 0;
+  font-size: 14px;
+}
+.note--warn { border-left-color: var(--amber); background: var(--amber-dim); }
+.note--danger { border-left-color: var(--red); background: var(--red-dim); }
+.note--ok { border-left-color: var(--green); background: var(--green-dim); }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0 22px;
+  font-size: 13.5px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+th {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+  font-weight: 500;
+}
+td {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+tr:last-child td { border-bottom: none; }
+td code { font-size: 0.85em; }
+.err-code {
+  font-family: var(--font-mono);
+  color: var(--red);
+  font-weight: 500;
+}
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin: 14px 0 22px;
+}
+.kpi {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+}
+.kpi__label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.kpi__value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-bright);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.kpi__hint { font-size: 12px; color: var(--text-dim); }
+.toc-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+  margin: 14px 0 28px;
+}
+.toc-summary__card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+  text-decoration: none;
+  color: var(--text);
+  transition: all 0.15s;
+  display: block;
+}
+.toc-summary__card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.toc-summary__card-title {
+  font-weight: 600;
+  color: var(--text-bright);
+  margin-bottom: 6px;
+  font-size: 15px;
+}
+.toc-summary__card-desc { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+.toc-summary__card-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+  margin-top: 10px;
+  letter-spacing: 0.08em;
+}
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+  .main { padding: 32px 24px 64px; }
+  .hero h1 { font-size: 30px; }
+}
+</style>
+</head>
+<body>
+<button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">🌙</button>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar__brand">CONTRACT · V1.0</div>
+    <div class="sidebar__title">Membership API</div>
+    <div class="sidebar__meta">2026-06-10 · B2C Feature</div>
+    <nav class="sidebar__nav">
+      <div class="sidebar__nav-group">Overview</div>
+      <a class="sidebar__link" href="#architecture"><span class="sidebar__link-code">§1</span>Architecture</a>
+      <a class="sidebar__link" href="#schema"><span class="sidebar__link-code">§2</span>DB Schema</a>
+      <a class="sidebar__link" href="#flows"><span class="sidebar__link-code">§3</span>Business Flows</a>
+
+      <div class="sidebar__nav-group">Admin API (Seller)</div>
+      <a class="sidebar__link" href="#A1"><span class="sidebar__link-code">A1</span>Create Program</a>
+      <a class="sidebar__link" href="#A2"><span class="sidebar__link-code">A2</span>Get Program</a>
+      <a class="sidebar__link" href="#A3"><span class="sidebar__link-code">A3</span>Update Program</a>
+      <a class="sidebar__link" href="#A4"><span class="sidebar__link-code">A4</span>List Members</a>
+      <a class="sidebar__link" href="#A5"><span class="sidebar__link-code">A5</span>Approve Member</a>
+      <a class="sidebar__link" href="#A6"><span class="sidebar__link-code">A6</span>Create Comp</a>
+
+      <div class="sidebar__nav-group">Buyer API (Storefront)</div>
+      <a class="sidebar__link" href="#B1"><span class="sidebar__link-code">B1</span>Get Status</a>
+      <a class="sidebar__link" href="#B2"><span class="sidebar__link-code">B2</span>Subscribe</a>
+      <a class="sidebar__link" href="#B3"><span class="sidebar__link-code">B3</span>Cancel Renewal</a>
+      <a class="sidebar__link" href="#B4"><span class="sidebar__link-code">B4</span>List Invoices</a>
+      <a class="sidebar__link" href="#B5"><span class="sidebar__link-code">B5</span>Update Payment</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <div class="hero">
+      <div class="hero__tag">BurgerShop · B2C Subscriptions</div>
+      <h1>Membership & Subscription<br>API Contract & Architecture</h1>
+      <p class="hero__lead">
+        Tài liệu đặc tả kiến trúc (Technical Design Document) và API Contract cho tính năng Membership. Dành cho Backend Developers, QA, và Tech Lead tham chiếu trong quá trình code và test.
+      </p>
+      <div class="hero__meta">
+        <span>Version<strong>v1.0</strong></span>
+        <span>Database<strong>Oracle</strong></span>
+        <span>Services<strong>Billing, Promotion, Payment, PSP</strong></span>
+        <span>Status<strong style="color: var(--green)">FINAL</strong></span>
+      </div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="kpi__label">Admin Endpoints</div>
+        <div class="kpi__value">6</div>
+        <div class="kpi__hint">Quản lý Program và Member</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi__label">Buyer Endpoints</div>
+        <div class="kpi__value">5</div>
+        <div class="kpi__hint">Subscription, Hóa đơn, Thẻ</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi__label">DB Tables</div>
+        <div class="kpi__value">3</div>
+        <div class="kpi__hint">Programs, Members, Invoices</div>
+      </div>
+    </div>
+
+    <hr>
+
+    <section id="architecture">
+      <div class="section-label">§ 1 — Foundation</div>
+      <h2>1. Tổng quan Kiến trúc</h2>
+      <p class="section-desc">Tính năng Membership (B2C) được thiết kế độc lập hoàn toàn với hệ thống Pricing Plan (B2B) hiện tại để tránh xung đột logic.</p>
+
+      <ul>
+        <li>Sử dụng <strong>Oracle Database</strong> cho mọi bảng dữ liệu.</li>
+        <li>Cơ chế Cronjob sử dụng <strong>ShedLock</strong> để chống chạy trùng lịch giữa các Pods.</li>
+        <li>Tích hợp <strong>Entity-driven Promotion</strong> cho việc tự động áp dụng giá Member (Không sử dụng Smart Sell/Triggered Addon).</li>
+        <li>Gửi Email qua <code>bgs-email-service</code> thông qua API nội bộ (Không gọi SendGrid trực tiếp).</li>
+      </ul>
+      
+      <div class="note note--warn">
+        <p><strong>Không tái sử dụng Pricing Plan:</strong> Vì B2B Subscription và B2C Membership có tính chất và luồng hoạt động hoàn toàn khác nhau. Việc ép dùng chung sẽ gây ra Technical Debt nghiêm trọng sau này.</p>
+      </div>
+    </section>
+
+    <section id="schema">
+      <div class="section-label">§ 2 — Database</div>
+      <h2>2. Oracle DB Schema</h2>
+
+      <h4>2.1. <code>membership_programs</code> (Cấu hình gói)</h4>
+      <ul>
+        <li><code>id</code> (VARCHAR2) - Primary Key</li>
+        <li><code>store_id</code> (VARCHAR2) - FK liên kết với Store</li>
+        <li><code>name</code> (VARCHAR2)</li>
+        <li><code>billing_cycle</code> (VARCHAR2) - <code>MONTHLY</code>, <code>YEARLY</code></li>
+        <li><code>price</code> (NUMBER)</li>
+        <li><code>status</code> (VARCHAR2) - <code>ACTIVE</code>, <code>INACTIVE</code></li>
+        <li><code>global_discount_type</code> (VARCHAR2) - <code>PERCENTAGE</code>, <code>FIXED_AMOUNT</code></li>
+        <li><code>global_discount_value</code> (NUMBER)</li>
+        <li><code>custom_product_discounts</code> (CLOB) - Yêu cầu thêm <code>CHECK (custom_product_discounts IS JSON)</code>.</li>
+      </ul>
+
+      <h4>2.2. <code>members</code> (Hội viên)</h4>
+      <ul>
+        <li><code>id</code> (VARCHAR2) - Primary Key</li>
+        <li><code>user_id</code> (VARCHAR2) - FK liên kết với Buyer</li>
+        <li><code>program_id</code> (VARCHAR2) - FK</li>
+        <li><code>status</code> (VARCHAR2) - <code>ACTIVE</code>, <code>ON_HOLD</code>, <code>EXPIRED</code></li>
+        <li><code>auto_renew</code> (NUMBER(1)) - 1 = true, 0 = false</li>
+        <li><code>next_billing_date</code> (TIMESTAMP)</li>
+        <li><code>payment_action_url</code> (VARCHAR2) - URL xác thực 3DSecure của Stripe khi charge lỗi</li>
+        <li><code>custom_fields_data</code> (CLOB) - JSON lưu custom form</li>
+      </ul>
+
+      <h4>2.3. <code>membership_invoices</code> (Lịch sử thanh toán)</h4>
+      <ul>
+        <li><code>id</code> (VARCHAR2) - Primary Key</li>
+        <li><code>member_id</code> (VARCHAR2) - FK</li>
+        <li><code>amount</code> (NUMBER)</li>
+        <li><code>status</code> (VARCHAR2) - <code>PAID</code>, <code>FAILED</code>, <code>PENDING</code>, <code>REFUNDED</code></li>
+        <li><code>stripe_invoice_id</code> (VARCHAR2)</li>
+      </ul>
+    </section>
+
+    <section id="flows">
+      <div class="section-label">§ 3 — Logic</div>
+      <h2>3. Business Flows</h2>
+
+      <h4>Tích hợp Promotion Service</h4>
+      <ol>
+        <li>Bổ sung type <code>MEMBERSHIP_DISCOUNT</code> vào bảng promotion type.</li>
+        <li>Backend tự động insert 1 record <code>Promotion</code> ẩn (System-generated) map với Program ID khi Seller tạo gói.</li>
+        <li>Tạo <code>MembershipDiscountStrategyImpl extends PromotionStrategyAbs</code>.</li>
+        <li>Cart/Checkout (<code>bgs-psp-buyer</code>) check JWT, nếu user là ACTIVE member thì tự động append Promotion ID vào request.</li>
+      </ol>
+
+      <h4>Luồng Auto-Renewal & Dunning</h4>
+      <ul>
+        <li>Chạy tại <code>bgs-billing-service</code> với <code>@Scheduled</code> + <code>@SchedulerLock</code>.</li>
+        <li>Query charge: <code>SELECT * FROM members WHERE status='ACTIVE' AND auto_renew=1 AND next_billing_date &lt;= SYSDATE</code>.</li>
+        <li>Retry quá hạn (3 ngày, 5 ngày). Quá 7 ngày update <code>status='ON_HOLD'</code>.</li>
+      </ul>
+
+      <h4>Luồng Xử lý Stripe Webhook & 3DSecure</h4>
+      <p>Xử lý tại <code>bgs-payment-service</code> sau đó dispatch event.</p>
+      <ul>
+        <li><strong>Event <code>invoice.payment_action_required</code>:</strong> Bắn email yêu cầu xác thực 3DS. Cập nhật URL xác thực vào trường <code>payment_action_url</code> của bảng <code>members</code>.</li>
+        <li><strong>Event <code>invoice.paid</code>:</strong> Cập nhật <code>next_billing_date</code>, xóa <code>payment_action_url</code>, và cập nhật status về <code>ACTIVE</code> (nếu đang bị <code>ON_HOLD</code>).</li>
+      </ul>
+    </section>
+
+    <hr>
+
+    <section id="admin-api">
+      <div class="section-label">Admin API · bgs-psp-admin</div>
+      <h2>Admin / Seller APIs</h2>
+      <p class="section-desc">Các API dùng cho màn hình Dashboard của Seller. Header bắt buộc: <code>Authorization: Bearer &lt;Admin_JWT&gt;</code>.</p>
+
+      <div class="endpoint" id="A1">
+        <div class="endpoint__header">
+          <span class="endpoint__id">A1</span>
+          <span class="method method-post">POST</span>
+          <span class="endpoint__title">Create Membership Program</span>
+        </div>
+        <div class="path">/ssp/api/v1/membership-programs</div>
+        <p><strong>Purpose:</strong> Tạo một gói Membership mới. Khi gọi thành công, Backend tự động kích hoạt tiến trình tạo 1 Promotion ẩn trong DB.</p>
+        <h4>Request Body</h4>
+<pre class="json"><code>{
+  <span class="k">"name"</span>: <span class="s">"VIP Burger Club"</span>,
+  <span class="k">"billing_cycle"</span>: <span class="s">"MONTHLY"</span>,
+  <span class="k">"price"</span>: <span class="s">"9.99"</span>,
+  <span class="k">"global_discount_type"</span>: <span class="s">"PERCENTAGE"</span>,
+  <span class="k">"global_discount_value"</span>: <span class="n">15</span>,
+  <span class="k">"custom_product_discounts"</span>: {
+    <span class="k">"prod_123"</span>: { <span class="k">"type"</span>: <span class="s">"FIXED_AMOUNT"</span>, <span class="k">"value"</span>: <span class="s">"5.00"</span> }
+  }
+}</code></pre>
+      </div>
+
+      <div class="endpoint" id="A2">
+        <div class="endpoint__header">
+          <span class="endpoint__id">A2</span>
+          <span class="method method-get">GET</span>
+          <span class="endpoint__title">Get Program Details</span>
+        </div>
+        <div class="path">/ssp/api/v1/membership-programs/{id}</div>
+        <p><strong>Purpose:</strong> Lấy chi tiết cấu hình của 1 chương trình Membership.</p>
+        <h4>Params</h4>
+        <table>
+          <thead><tr><th>Name</th><th>In</th><th>Type</th><th>Required</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td>Path</td><td>String</td><td>Yes</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="endpoint" id="A3">
+        <div class="endpoint__header">
+          <span class="endpoint__id">A3</span>
+          <span class="method method-put">PUT</span>
+          <span class="endpoint__title">Update Program</span>
+        </div>
+        <div class="path">/ssp/api/v1/membership-programs/{id}</div>
+        <p><strong>Purpose:</strong> Cập nhật thông tin gói (giá, tên, cấu hình giảm giá).</p>
+      </div>
+
+      <div class="endpoint" id="A4">
+        <div class="endpoint__header">
+          <span class="endpoint__id">A4</span>
+          <span class="method method-get">GET</span>
+          <span class="endpoint__title">List Members</span>
+        </div>
+        <div class="path">/ssp/api/v1/members</div>
+        <p><strong>Purpose:</strong> Lấy danh sách hội viên. Hỗ trợ phân trang và filter theo status.</p>
+        <h4>Query Params</h4>
+        <table>
+          <thead><tr><th>Name</th><th>In</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>status</code></td><td>Query</td><td>String</td><td>ACTIVE | ON_HOLD | EXPIRED</td></tr>
+            <tr><td><code>page</code></td><td>Query</td><td>Integer</td><td>Default: 1</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="endpoint" id="A5">
+        <div class="endpoint__header">
+          <span class="endpoint__id">A5</span>
+          <span class="method method-post">POST</span>
+          <span class="endpoint__title">Approve Member (Manual)</span>
+        </div>
+        <div class="path">/ssp/api/v1/members/{id}/approve</div>
+        <p><strong>Purpose:</strong> Duyệt tay cho hội viên (nếu setup yêu cầu approve tay thay vì auto-approve sau khi pay).</p>
+      </div>
+
+      <div class="endpoint" id="A6">
+        <div class="endpoint__header">
+          <span class="endpoint__id">A6</span>
+          <span class="method method-post">POST</span>
+          <span class="endpoint__title">Create Complementary Member</span>
+        </div>
+        <div class="path">/ssp/api/v1/members/comp</div>
+        <p><strong>Purpose:</strong> Tặng thẻ hội viên miễn phí (Comp) cho user. Không yêu cầu charge thẻ.</p>
+      </div>
+    </section>
+
+    <hr>
+
+    <section id="buyer-api">
+      <div class="section-label">Buyer API · bgs-psp-buyer</div>
+      <h2>Buyer / Storefront APIs</h2>
+      <p class="section-desc">Các API dùng cho Storefront. Header bắt buộc: <code>Authorization: Bearer &lt;Buyer_JWT&gt;</code>.</p>
+
+      <div class="endpoint" id="B1">
+        <div class="endpoint__header">
+          <span class="endpoint__id">B1</span>
+          <span class="method method-get">GET</span>
+          <span class="endpoint__title">Get Membership Status</span>
+        </div>
+        <div class="path">/psp-buyer/api/v1/membership/status</div>
+        <p><strong>Purpose:</strong> Lấy trạng thái member hiện tại của user đang đăng nhập (để FE quyết định hiển thị giá VIP hay giá thường).</p>
+        <h4>Response</h4>
+<pre class="json"><code>{
+  <span class="k">"code"</span>: <span class="n">200</span>,
+  <span class="k">"data"</span>: {
+    <span class="k">"is_member"</span>: <span class="b">true</span>,
+    <span class="k">"status"</span>: <span class="s">"ACTIVE"</span>,
+    <span class="k">"next_billing_date"</span>: <span class="s">"2026-07-10T12:00:00Z"</span>,
+    <span class="k">"program"</span>: {
+      <span class="k">"name"</span>: <span class="s">"VIP Burger Club"</span>,
+      <span class="k">"global_discount_value"</span>: <span class="n">15</span>
+    }
+  }
+}</code></pre>
+      </div>
+
+      <div class="endpoint" id="B2">
+        <div class="endpoint__header">
+          <span class="endpoint__id">B2</span>
+          <span class="method method-post">POST</span>
+          <span class="endpoint__title">Subscribe</span>
+        </div>
+        <div class="path">/psp-buyer/api/v1/membership/subscribe</div>
+        <p><strong>Purpose:</strong> Đăng ký gói mới. Trả về Checkout URL của Stripe để user nhập thẻ.</p>
+        <h4>Request Body</h4>
+<pre class="json"><code>{
+  <span class="k">"program_id"</span>: <span class="s">"prog_091823"</span>,
+  <span class="k">"custom_fields"</span>: {
+    <span class="k">"t-shirt-size"</span>: <span class="s">"L"</span>
+  }
+}</code></pre>
+      </div>
+
+      <div class="endpoint" id="B3">
+        <div class="endpoint__header">
+          <span class="endpoint__id">B3</span>
+          <span class="method method-put">PUT</span>
+          <span class="endpoint__title">Cancel Auto-Renewal</span>
+        </div>
+        <div class="path">/psp-buyer/api/v1/membership/cancel</div>
+        <p><strong>Purpose:</strong> Khách chủ động tắt gia hạn. Đưa <code>auto_renew</code> về 0.</p>
+        <div class="note">
+          <p><strong>Lưu ý:</strong> Khi tắt gia hạn, trạng thái vẫn là <code>ACTIVE</code> cho đến ngày <code>next_billing_date</code>, sau đó mới chuyển sang <code>EXPIRED</code>.</p>
+        </div>
+      </div>
+
+      <div class="endpoint" id="B4">
+        <div class="endpoint__header">
+          <span class="endpoint__id">B4</span>
+          <span class="method method-get">GET</span>
+          <span class="endpoint__title">List Invoices</span>
+        </div>
+        <div class="path">/psp-buyer/api/v1/membership/invoices</div>
+        <p><strong>Purpose:</strong> Liệt kê lịch sử hóa đơn trừ tiền membership hàng tháng.</p>
+      </div>
+
+      <div class="endpoint" id="B5">
+        <div class="endpoint__header">
+          <span class="endpoint__id">B5</span>
+          <span class="method method-put">PUT</span>
+          <span class="endpoint__title">Update Payment Method</span>
+        </div>
+        <div class="path">/psp-buyer/api/v1/membership/payment-method</div>
+        <p><strong>Purpose:</strong> Đổi thông tin thẻ tín dụng mới. Dùng khi khách vào trạng thái <code>ON_HOLD</code> do thẻ cũ hết tiền/lỗi.</p>
+      </div>
+    </section>
+
+    <hr>
+
+    <section id="tasks">
+      <div class="section-label">§ 5 — Execution</div>
+      <h2>5. Phân rã công việc (Task Breakdown)</h2>
+      <p class="section-desc">Kế hoạch cuốn chiếu 10% capacity/sprint.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Task ID</th>
+            <th>Component</th>
+            <th>Service</th>
+            <th>Mô tả Công việc</th>
+            <th>Estimate</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>BE-01</strong></td>
+            <td>Database</td>
+            <td>DB/Core</td>
+            <td>Viết script Oracle khởi tạo 3 bảng (<code>membership_programs</code>, <code>members</code>, <code>invoices</code>) và Index.</td>
+            <td>4h</td>
+          </tr>
+          <tr>
+            <td><strong>BE-02</strong></td>
+            <td>Promotion</td>
+            <td>Promotion</td>
+            <td>Implement <code>MembershipDiscountStrategyImpl</code>, setup auto-create Promotion ẩn.</td>
+            <td>1.5d</td>
+          </tr>
+          <tr>
+            <td><strong>BE-03</strong></td>
+            <td>Buyer API</td>
+            <td>Buyer</td>
+            <td>API Subscription, Hủy, Trạng thái, Cập nhật thẻ.</td>
+            <td>1.5d</td>
+          </tr>
+          <tr>
+            <td><strong>BE-04</strong></td>
+            <td>Admin API</td>
+            <td>Admin</td>
+            <td>API CRUD Membership Programs, Quản lý Members.</td>
+            <td>1.5d</td>
+          </tr>
+          <tr>
+            <td><strong>BE-05</strong></td>
+            <td>Jobs & Email</td>
+            <td>Billing</td>
+            <td>Setup <code>MembershipRenewalJob</code>, <code>MembershipDunningJob</code> (ShedLock), Tích hợp Email nội bộ.</td>
+            <td>2.0d</td>
+          </tr>
+          <tr>
+            <td><strong>BE-06</strong></td>
+            <td>Webhook</td>
+            <td>Payment</td>
+            <td>Handle event <code>invoice.payment_action_required</code> (3DS) và <code>invoice.paid</code>.</td>
+            <td>1.0d</td>
+          </tr>
+          <tr>
+            <td><strong>BE-07</strong></td>
+            <td>Integration</td>
+            <td>Cart/Core</td>
+            <td>Map logic JWT lấy Promotion ID đẩy vào luồng checkout hiện hành.</td>
+            <td>1.0d</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  // Theme toggle functionality
+  const btn = document.getElementById('themeToggle');
+  const html = document.documentElement;
+  
+  // Initialize from localStorage or OS preference
+  const saved = localStorage.getItem('theme');
+  if (saved) {
+    html.setAttribute('data-theme', saved);
+    btn.textContent = saved === 'light' ? '🌞' : '🌙';
+  } else if (window.matchMedia('(prefers-color-scheme: light)').matches) {
+    html.setAttribute('data-theme', 'light');
+    btn.textContent = '🌞';
+  }
+
+  btn.addEventListener('click', () => {
+    const current = html.getAttribute('data-theme');
+    const target = current === 'light' ? 'dark' : 'light';
+    html.setAttribute('data-theme', target);
+    btn.textContent = target === 'light' ? '🌞' : '🌙';
+    localStorage.setItem('theme', target);
+  });
+</script>
+</body>
+</html>
