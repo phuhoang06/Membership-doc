@@ -506,6 +506,7 @@ td code { font-size: 0.85em; }
       <a class="sidebar__link" href="#B3"><span class="sidebar__link-code">B3</span>Cancel Renewal</a>
       <a class="sidebar__link" href="#B4"><span class="sidebar__link-code">B4</span>List Invoices</a>
       <a class="sidebar__link" href="#B5"><span class="sidebar__link-code">B5</span>Update Payment</a>
+      <a class="sidebar__link" href="#B6"><span class="sidebar__link-code">B6</span>Pause Membership</a>
     </nav>
   </aside>
 
@@ -571,11 +572,13 @@ td code { font-size: 0.85em; }
         <li><code>S_STORE_ID</code> (VARCHAR2) - Liên kết với Store</li>
         <li><code>S_NAME</code> (VARCHAR2)</li>
         <li><code>S_BILLING_CYCLE</code> (VARCHAR2) - <code>MONTHLY</code>, <code>YEARLY</code></li>
-        <li><code>S_PRICE</code> (VARCHAR2) - Giá gói (thập phân)</li>
+        <li><code>S_PRICE</code> (VARCHAR2) - Giá gói (nếu = 0 là gói miễn phí)</li>
         <li><code>S_STATE</code> (VARCHAR2) - <code>active</code>, <code>inactive</code></li>
         <li><code>S_GLOBAL_DISCOUNT_TYPE</code> (VARCHAR2) - <code>PERCENTAGE</code>, <code>FIXED_AMOUNT</code></li>
         <li><code>S_GLOBAL_DISCOUNT_VALUE</code> (VARCHAR2)</li>
         <li><code>C_CUSTOM_PRODUCT_DISCOUNTS</code> (CLOB) - Yêu cầu thêm <code>CHECK (C_CUSTOM_PRODUCT_DISCOUNTS IS JSON)</code>.</li>
+        <li><code>S_APPROVAL_MODE</code> (VARCHAR2) - <code>auto</code>, <code>manual</code> (Chế độ duyệt tự động hay duyệt tay).</li>
+        <li><code>C_CUSTOM_FIELDS_CONFIG</code> (CLOB) - JSON lưu tối đa 5 custom fields (label, required).</li>
         <li><code>D_CREATE</code>, <code>D_UPDATE</code> (TIMESTAMP)</li>
       </ul>
 
@@ -584,21 +587,20 @@ td code { font-size: 0.85em; }
         <li><code>S_ID</code> (VARCHAR2)</li>
         <li><code>S_USER_ID</code> (VARCHAR2) - Liên kết với Buyer</li>
         <li><code>S_PROGRAM_ID</code> (VARCHAR2) - Liên kết với <code>TB_MEMBERSHIP_PROGRAM</code></li>
-        <li><code>S_STATE</code> (VARCHAR2) - <code>active</code>, <code>on_hold</code>, <code>expired</code></li>
+        <li><code>S_STATE</code> (VARCHAR2) - <code>pending</code>, <code>active</code>, <code>past_due</code>, <code>on_hold</code>, <code>cancelled</code>, <code>expired</code></li>
         <li><code>N_AUTO_RENEW</code> (NUMBER(1)) - 1 = true, 0 = false</li>
         <li><code>D_NEXT_BILLING_DATE</code> (TIMESTAMP)</li>
-        <li><code>S_PAYMENT_ACTION_URL</code> (VARCHAR2) - URL xác thực 3DSecure của Stripe khi charge lỗi</li>
         <li><code>C_CUSTOM_FIELDS_DATA</code> (CLOB) - JSON lưu custom form</li>
         <li><code>D_CREATE</code>, <code>D_UPDATE</code> (TIMESTAMP)</li>
       </ul>
 
-      <h4>2.3. <code>TB_MEMBERSHIP_INVOICE</code> (Lịch sử thanh toán)</h4>
+      <h4>2.3. <code>TB_MEMBERSHIP_INVOICE</code> (Lịch sử thanh toán định kỳ)</h4>
       <ul>
         <li><code>S_ID</code> (VARCHAR2)</li>
         <li><code>S_MEMBER_ID</code> (VARCHAR2) - Liên kết với Member</li>
+        <li><code>S_ORDER_ID</code> (VARCHAR2) - Liên kết với Order gốc trong BGS để phục vụ Payout.</li>
         <li><code>S_AMOUNT</code> (VARCHAR2)</li>
         <li><code>S_STATE</code> (VARCHAR2) - <code>paid</code>, <code>failed</code>, <code>pending</code>, <code>refunded</code></li>
-        <li><code>S_STRIPE_INVOICE_ID</code> (VARCHAR2)</li>
         <li><code>D_CREATE</code>, <code>D_UPDATE</code> (TIMESTAMP)</li>
       </ul>
     </section>
@@ -607,26 +609,38 @@ td code { font-size: 0.85em; }
       <div class="section-label">§ 3 — Logic</div>
       <h2>3. Business Flows</h2>
 
-      <h4>Tích hợp Promotion Service</h4>
+      <h4>Tích hợp Promotion Service (Transient / In-Memory Entity)</h4>
+      <p>Không tạo record ảo dưới DB để tránh rác hệ thống (Anti-pattern). Sử dụng Transient Object:</p>
       <ol>
-        <li>Bổ sung type <code>MEMBERSHIP_DISCOUNT</code> vào bảng promotion type.</li>
-        <li>Backend tự động insert 1 record <code>Promotion</code> ẩn (System-generated) map với Program ID khi Seller tạo gói.</li>
+        <li>Bổ sung type <code>MEMBERSHIP_DISCOUNT</code> vào hệ thống Promotion.</li>
         <li>Tạo <code>MembershipDiscountStrategyImpl extends PromotionStrategyAbs</code>.</li>
-        <li>Cart/Checkout (<code>bgs-psp-buyer</code>) check JWT, nếu user là ACTIVE member thì tự động append Promotion ID vào request.</li>
+        <li>Cart/Checkout (<code>bgs-psp-buyer</code>) check JWT. Nếu user là ACTIVE member: Khởi tạo một đối tượng <code>Promotion</code> <strong>in-memory</strong> (transient) chứa thông tin discount từ gói Membership, sau đó pass đối tượng này vào <code>PromotionStrategyContext</code>.</li>
       </ol>
 
-      <h4>Luồng Auto-Renewal & Dunning</h4>
+      <h4>Luồng Signup Đăng ký</h4>
       <ul>
-        <li>Chạy tại <code>bgs-billing-service</code> với <code>@Scheduled</code> + <code>@SchedulerLock</code>.</li>
-        <li>Query charge: <code>SELECT * FROM TB_MEMBER WHERE S_STATE='active' AND N_AUTO_RENEW=1 AND D_NEXT_BILLING_DATE &lt;= SYSDATE</code>.</li>
-        <li>Retry quá hạn (3 ngày, 5 ngày). Quá 7 ngày update <code>S_STATE='on_hold'</code>.</li>
+        <li><strong>Gói Trả Phí:</strong> Khởi tạo 1 Đơn hàng (Order) -> User thanh toán Checkout -> Thành công thì chuyển trạng thái Member sang <code>active</code> (hoặc <code>pending</code> nếu là duyệt tay).</li>
+        <li><strong>Gói Miễn Phí ($0):</strong> KHÔNG tạo Order. Kích hoạt Member ngay lập tức (sang <code>active</code> hoặc <code>pending</code>).</li>
+        <li><strong>Member Tặng (Comp):</strong> CS/Admin tạo tay từ Dashboard. Không qua Order, kích hoạt thẳng.</li>
+        <li><strong>Duyệt tay (Manual Approval):</strong> Kể cả đã thanh toán, Member vẫn ở trạng thái <code>pending</code>. Chỉ sau khi Seller duyệt mới chuyển <code>active</code>.</li>
       </ul>
 
-      <h4>Luồng Xử lý Stripe Webhook & 3DSecure</h4>
-      <p>Xử lý tại <code>bgs-payment-service</code> sau đó dispatch event.</p>
+      <h4>Luồng Auto-Renewal & Dunning (BGS Multi-Gateway Off-Session)</h4>
+      <p>Không dùng Stripe Billing (tránh lock-in). Tận dụng Off-Session Payment Primitive hiện có của BGS.</p>
       <ul>
-        <li><strong>Event <code>invoice.payment_action_required</code>:</strong> Bắn email yêu cầu xác thực 3DS. Cập nhật URL xác thực vào trường <code>S_PAYMENT_ACTION_URL</code> của bảng <code>TB_MEMBER</code>.</li>
-        <li><strong>Event <code>invoice.paid</code>:</strong> Cập nhật <code>D_NEXT_BILLING_DATE</code>, xóa <code>S_PAYMENT_ACTION_URL</code>, và cập nhật status về <code>active</code> (nếu đang bị <code>on_hold</code>).</li>
+        <li><strong>Lưu thẻ:</strong> Lần thanh toán đầu, setup <code>setup_future_usage=off_session</code>.</li>
+        <li><strong>Cronjob quét:</strong> <code>SELECT * FROM TB_MEMBER WHERE S_STATE='active' AND N_AUTO_RENEW=1 AND D_NEXT_BILLING_DATE &lt;= SYSDATE</code>.</li>
+        <li><strong>Thực thi Charge (Order-Driven):</strong> Tạo Order mới (Type: <code>MEMBERSHIP_RENEWAL</code>) -> Bắn qua <code>bgs-payment-service</code> gọi off-session charge.</li>
+        <li><strong>Success:</strong> Order PAID -> Cập nhật <code>D_NEXT_BILLING_DATE</code>.</li>
+        <li><strong>Fail:</strong> Order FAILED -> Kích hoạt luồng Dunning. Gửi email ngay. Chuyển sang trạng thái ngầm <code>past_due</code>.</li>
+        <li><strong>Retry & Dunning:</strong> Retry vào ngày <strong>+3</strong>, <strong>+5</strong>. Quá <strong>+7 ngày</strong> chuyển thành <code>on_hold</code> (Cắt quyền lợi).</li>
+        <li><strong>SCA/3DS:</strong> Nếu thẻ yêu cầu xác thực bảo mật, email dunning sẽ trỏ về Member Portal (Payment Wall) để khách hàng chủ động click xác thực. URL xác thực sẽ được lấy trực tiếp từ <code>ORDER</code>.</li>
+      </ul>
+
+      <h4>Các Action Đặc Biệt</h4>
+      <ul>
+        <li><strong>Refund Đơn hàng:</strong> Khi CS hoàn tiền một đơn Membership, hệ thống phải gỡ quyền lợi (chuyển sang <code>cancelled</code>) và tắt Auto-Renew.</li>
+        <li><strong>Tạm Dừng (Pause):</strong> Khách hàng gói Tháng có thể tạm dừng (Pause), cắt quyền lợi tạm thời và không bị thu tiền chu kỳ sau.</li>
       </ul>
     </section>
 
@@ -644,7 +658,7 @@ td code { font-size: 0.85em; }
           <span class="endpoint__title">Create Membership Program</span>
         </div>
         <div class="path">/ssp/api/v1/membership-programs</div>
-        <p><strong>Purpose:</strong> Tạo một gói Membership mới. Khi gọi thành công, Backend tự động kích hoạt tiến trình tạo 1 Promotion ẩn trong DB.</p>
+        <p><strong>Purpose:</strong> Tạo một gói Membership mới. Các thiết lập giảm giá của gói này sẽ được lưu trực tiếp tại <code>TB_MEMBERSHIP_PROGRAM</code> và sẽ được apply động lúc Checkout qua <code>MembershipDiscountStrategyImpl</code> (Không sinh record Promotion vật lý xuống DB).</p>
         <h4>Request Body</h4>
 <pre class="json"><code>{
   <span class="k">"name"</span>: <span class="s">"VIP Burger Club"</span>,
@@ -803,6 +817,16 @@ td code { font-size: 0.85em; }
         <div class="path">/psp-buyer/api/v1/membership/payment-method</div>
         <p><strong>Purpose:</strong> Đổi thông tin thẻ tín dụng mới. Dùng khi khách vào trạng thái <code>ON_HOLD</code> do thẻ cũ hết tiền/lỗi.</p>
       </div>
+
+      <div class="endpoint" id="B6">
+        <div class="endpoint__header">
+          <span class="endpoint__id">B6</span>
+          <span class="method method-put">PUT</span>
+          <span class="endpoint__title">Pause Membership</span>
+        </div>
+        <div class="path">/psp-buyer/api/v1/membership/pause</div>
+        <p><strong>Purpose:</strong> Tạm dừng gói tháng. Cắt quyền lợi hiện tại và ngưng charge tiền kỳ sau.</p>
+      </div>
     </section>
 
     <hr>
@@ -833,7 +857,7 @@ td code { font-size: 0.85em; }
             <td><strong>BE-02</strong></td>
             <td>Promotion</td>
             <td>Promotion</td>
-            <td>Implement <code>MembershipDiscountStrategyImpl</code>, setup auto-create Promotion ẩn.</td>
+            <td>Implement <code>MembershipDiscountStrategyImpl</code> cho việc apply transient discount tại Checkout.</td>
             <td>1.5d</td>
           </tr>
           <tr>
