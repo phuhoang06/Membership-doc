@@ -538,7 +538,7 @@ td code { font-size: 0.85em; }
       <div class="kpi">
         <div class="kpi__label">DB Tables</div>
         <div class="kpi__value">3</div>
-        <div class="kpi__hint">Programs, Members, Invoices</div>
+        <div class="kpi__hint"><code>TB_MEMBERSHIP_PROGRAM</code>, v.v.</div>
       </div>
     </div>
 
@@ -565,38 +565,41 @@ td code { font-size: 0.85em; }
       <div class="section-label">§ 2 — Database</div>
       <h2>2. Oracle DB Schema</h2>
 
-      <h4>2.1. <code>membership_programs</code> (Cấu hình gói)</h4>
+      <h4>2.1. <code>TB_MEMBERSHIP_PROGRAM</code> (Cấu hình gói)</h4>
       <ul>
-        <li><code>id</code> (VARCHAR2) - Primary Key</li>
-        <li><code>store_id</code> (VARCHAR2) - FK liên kết với Store</li>
-        <li><code>name</code> (VARCHAR2)</li>
-        <li><code>billing_cycle</code> (VARCHAR2) - <code>MONTHLY</code>, <code>YEARLY</code></li>
-        <li><code>price</code> (NUMBER)</li>
-        <li><code>status</code> (VARCHAR2) - <code>ACTIVE</code>, <code>INACTIVE</code></li>
-        <li><code>global_discount_type</code> (VARCHAR2) - <code>PERCENTAGE</code>, <code>FIXED_AMOUNT</code></li>
-        <li><code>global_discount_value</code> (NUMBER)</li>
-        <li><code>custom_product_discounts</code> (CLOB) - Yêu cầu thêm <code>CHECK (custom_product_discounts IS JSON)</code>.</li>
+        <li><code>S_ID</code> (VARCHAR2)</li>
+        <li><code>S_STORE_ID</code> (VARCHAR2) - Liên kết với Store</li>
+        <li><code>S_NAME</code> (VARCHAR2)</li>
+        <li><code>S_BILLING_CYCLE</code> (VARCHAR2) - <code>MONTHLY</code>, <code>YEARLY</code></li>
+        <li><code>S_PRICE</code> (VARCHAR2) - Giá gói (thập phân)</li>
+        <li><code>S_STATE</code> (VARCHAR2) - <code>active</code>, <code>inactive</code></li>
+        <li><code>S_GLOBAL_DISCOUNT_TYPE</code> (VARCHAR2) - <code>PERCENTAGE</code>, <code>FIXED_AMOUNT</code></li>
+        <li><code>S_GLOBAL_DISCOUNT_VALUE</code> (VARCHAR2)</li>
+        <li><code>C_CUSTOM_PRODUCT_DISCOUNTS</code> (CLOB) - Yêu cầu thêm <code>CHECK (C_CUSTOM_PRODUCT_DISCOUNTS IS JSON)</code>.</li>
+        <li><code>D_CREATE</code>, <code>D_UPDATE</code> (TIMESTAMP)</li>
       </ul>
 
-      <h4>2.2. <code>members</code> (Hội viên)</h4>
+      <h4>2.2. <code>TB_MEMBER</code> (Hội viên)</h4>
       <ul>
-        <li><code>id</code> (VARCHAR2) - Primary Key</li>
-        <li><code>user_id</code> (VARCHAR2) - FK liên kết với Buyer</li>
-        <li><code>program_id</code> (VARCHAR2) - FK</li>
-        <li><code>status</code> (VARCHAR2) - <code>ACTIVE</code>, <code>ON_HOLD</code>, <code>EXPIRED</code></li>
-        <li><code>auto_renew</code> (NUMBER(1)) - 1 = true, 0 = false</li>
-        <li><code>next_billing_date</code> (TIMESTAMP)</li>
-        <li><code>payment_action_url</code> (VARCHAR2) - URL xác thực 3DSecure của Stripe khi charge lỗi</li>
-        <li><code>custom_fields_data</code> (CLOB) - JSON lưu custom form</li>
+        <li><code>S_ID</code> (VARCHAR2)</li>
+        <li><code>S_USER_ID</code> (VARCHAR2) - Liên kết với Buyer</li>
+        <li><code>S_PROGRAM_ID</code> (VARCHAR2) - Liên kết với <code>TB_MEMBERSHIP_PROGRAM</code></li>
+        <li><code>S_STATE</code> (VARCHAR2) - <code>active</code>, <code>on_hold</code>, <code>expired</code></li>
+        <li><code>N_AUTO_RENEW</code> (NUMBER(1)) - 1 = true, 0 = false</li>
+        <li><code>D_NEXT_BILLING_DATE</code> (TIMESTAMP)</li>
+        <li><code>S_PAYMENT_ACTION_URL</code> (VARCHAR2) - URL xác thực 3DSecure của Stripe khi charge lỗi</li>
+        <li><code>C_CUSTOM_FIELDS_DATA</code> (CLOB) - JSON lưu custom form</li>
+        <li><code>D_CREATE</code>, <code>D_UPDATE</code> (TIMESTAMP)</li>
       </ul>
 
-      <h4>2.3. <code>membership_invoices</code> (Lịch sử thanh toán)</h4>
+      <h4>2.3. <code>TB_MEMBERSHIP_INVOICE</code> (Lịch sử thanh toán)</h4>
       <ul>
-        <li><code>id</code> (VARCHAR2) - Primary Key</li>
-        <li><code>member_id</code> (VARCHAR2) - FK</li>
-        <li><code>amount</code> (NUMBER)</li>
-        <li><code>status</code> (VARCHAR2) - <code>PAID</code>, <code>FAILED</code>, <code>PENDING</code>, <code>REFUNDED</code></li>
-        <li><code>stripe_invoice_id</code> (VARCHAR2)</li>
+        <li><code>S_ID</code> (VARCHAR2)</li>
+        <li><code>S_MEMBER_ID</code> (VARCHAR2) - Liên kết với Member</li>
+        <li><code>S_AMOUNT</code> (VARCHAR2)</li>
+        <li><code>S_STATE</code> (VARCHAR2) - <code>paid</code>, <code>failed</code>, <code>pending</code>, <code>refunded</code></li>
+        <li><code>S_STRIPE_INVOICE_ID</code> (VARCHAR2)</li>
+        <li><code>D_CREATE</code>, <code>D_UPDATE</code> (TIMESTAMP)</li>
       </ul>
     </section>
 
@@ -615,15 +618,15 @@ td code { font-size: 0.85em; }
       <h4>Luồng Auto-Renewal & Dunning</h4>
       <ul>
         <li>Chạy tại <code>bgs-billing-service</code> với <code>@Scheduled</code> + <code>@SchedulerLock</code>.</li>
-        <li>Query charge: <code>SELECT * FROM members WHERE status='ACTIVE' AND auto_renew=1 AND next_billing_date &lt;= SYSDATE</code>.</li>
-        <li>Retry quá hạn (3 ngày, 5 ngày). Quá 7 ngày update <code>status='ON_HOLD'</code>.</li>
+        <li>Query charge: <code>SELECT * FROM TB_MEMBER WHERE S_STATE='active' AND N_AUTO_RENEW=1 AND D_NEXT_BILLING_DATE &lt;= SYSDATE</code>.</li>
+        <li>Retry quá hạn (3 ngày, 5 ngày). Quá 7 ngày update <code>S_STATE='on_hold'</code>.</li>
       </ul>
 
       <h4>Luồng Xử lý Stripe Webhook & 3DSecure</h4>
       <p>Xử lý tại <code>bgs-payment-service</code> sau đó dispatch event.</p>
       <ul>
-        <li><strong>Event <code>invoice.payment_action_required</code>:</strong> Bắn email yêu cầu xác thực 3DS. Cập nhật URL xác thực vào trường <code>payment_action_url</code> của bảng <code>members</code>.</li>
-        <li><strong>Event <code>invoice.paid</code>:</strong> Cập nhật <code>next_billing_date</code>, xóa <code>payment_action_url</code>, và cập nhật status về <code>ACTIVE</code> (nếu đang bị <code>ON_HOLD</code>).</li>
+        <li><strong>Event <code>invoice.payment_action_required</code>:</strong> Bắn email yêu cầu xác thực 3DS. Cập nhật URL xác thực vào trường <code>S_PAYMENT_ACTION_URL</code> của bảng <code>TB_MEMBER</code>.</li>
+        <li><strong>Event <code>invoice.paid</code>:</strong> Cập nhật <code>D_NEXT_BILLING_DATE</code>, xóa <code>S_PAYMENT_ACTION_URL</code>, và cập nhật status về <code>active</code> (nếu đang bị <code>on_hold</code>).</li>
       </ul>
     </section>
 
@@ -823,7 +826,7 @@ td code { font-size: 0.85em; }
             <td><strong>BE-01</strong></td>
             <td>Database</td>
             <td>DB/Core</td>
-            <td>Viết script Oracle khởi tạo 3 bảng (<code>membership_programs</code>, <code>members</code>, <code>invoices</code>) và Index.</td>
+            <td>Viết script Oracle khởi tạo 3 bảng (<code>TB_MEMBERSHIP_PROGRAM</code>, <code>TB_MEMBER</code>, <code>TB_MEMBERSHIP_INVOICE</code>) và Index.</td>
             <td>4h</td>
           </tr>
           <tr>
